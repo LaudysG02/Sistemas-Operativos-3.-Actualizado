@@ -1,0 +1,132 @@
+================
+Instalar Docker
+================
+
+sudo apt update  
+(Actualiza la lista de paquetes)
+
+sudo apt install docker.io -y  
+(Instala Docker sin pedir confirmación)
+
+sudo systemctl start docker  
+(Inicia el servicio de Docker)
+
+sudo systemctl enable docker  
+(Configura Docker para que se inicie automáticamente al arrancar el sistema)
+
+sudo docker pull nginx  
+(Descarga la imagen oficial de Nginx desde Docker Hub)
+
+sudo mkdir -p /home/website  
+(Crea el directorio donde se guardarán los archivos del sitio web)
+
+sudo nano /home/website/index.html  
+(Crea el archivo HTML para editar la página web)
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mi Página</title>
+</head>
+<body>
+    <h1>Laudys Gonzalez</h1>
+    <p>Matricula: 2025-0825</p>
+</body>
+</html>
+
+
+sudo docker run -d \
+-p 8888:80 \
+-v /home/website:/usr/share/nginx/html \
+--name mi_nginx \
+nginx  
+(Ejecuta un contenedor Nginx en segundo plano, enlazando el puerto 8888 de la VM y montando el contenido web ene l puerto 80 del contenedor)
+
+sudo docker ps  
+(Muestra los contenedores Docker que están en ejecución)
+
+##Probar en el navegador que se logra visualizar
+
+=======================
+Portainer y volumen.
+=======================
+sudo docker volume create portainer_data  
+(Crea un volumen persistente en Docker para almacenar los datos de Portainer)
+
+sudo docker run -d -p 8000:8000 -p 9443:9443 --name portainer \
+    --restart=always \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v portainer_data:/var/lib/portainer \
+    portainer/portainer-ce:latest  
+(Ejecuta Portainer en segundo plano, exponiendo sus puertos, conectándolo al socket de Docker y usando un volumen para guardar su configuración de forma persistente)
+
+####Configuración Inicial (Interfaz Web)####
+1. Abre el navegador en tu Kali y entra a: https://127.0.0.1:9443
+	Nota: Te saldrá un aviso de "Conexión no privada" (por el 	certificado SSL). 
+2.Haz clic en Avanzado y luego en "Continuar a 127.0.0.1 (no seguro)".
+3. Crea el usuario administrador: Define una contraseña fuerte (anótala, la necesitarás).
+4. Vincular con Docker Engine: Portainer te preguntará qué quieres gestionar. Selecciona "Get Started" o el entorno "Local". Verás que aparece una ballena con el nombre de tu máquina (nodo1).
+
+
+================
+Docker Compose
+================
+sudo apt install docker-compose -y  
+(Instala Docker Compose para gestionar múltiples contenedores)
+
+mkdir wordpress  
+(Crea una carpeta para WordPress)
+
+cd wordpress  
+(Entra en la carpeta )
+
+nano docker-compose.yml  
+(Crea y edita el archivo de configuración de Docker Compose)
+
+# Contenido del archivo docker-compose.yml
+version: '3.8'  (Define la versión del formato de Docker Compose)
+
+services:  (Sección donde se definen los contenedores)
+  
+db:  
+   image: mysql:5.7
+   container_name: wordpress_db
+   restart: always
+   Environment:
+     MYSQL_ROOT_PASSWORD: root123
+     MYSQL_DATABASE: wordpress
+     MYSQL_USER: user
+     MYSQL_PASSWORD: user123
+   volumes: (Define almacenamiento persistente)
+      - db_data:/var/lib/mysql (Guarda los datos de MySQL en un volumen llamado db_data)
+
+wordpress:
+   image: wordpress
+   container_name: wordpress_web
+   restart: always
+   Ports:
+      - "8090:80"  
+      (Permite acceder a WordPress desde el puerto 8090)
+
+    environment:  
+     WORDPRESS_DB_HOST: db:3306
+     WORDPRESS_DB_USER: user
+     WORDPRESS_DB_PASSWORD: user123
+     WORDPRESS_DB_NAME: wordpress
+   Depends_on:
+      - db  
+
+volumes:  
+  db_data:  
+  (Crea el volumen persistente para la base de datos)
+
+
+### Levantar los contenedores###
+sudo docker-compose up -d  
+(Levanta todos los servicios definidos en segundo plano)
+
+sudo docker ps  
+(Muestra los contenedores que están corriendo)
+
+###Acceder a WordPress###
+En el navegador:
+http://192.168.0:9010
