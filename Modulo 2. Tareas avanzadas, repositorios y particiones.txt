@@ -1,0 +1,56 @@
+==============================
+Repositorios
+==============================
+sudo apt update  (Actualiza la lista de paquetes disponibles en los repositorios.)
+sudo apt upgrade -y (Instala las versiones más recientes de todas las herramientas que ya están instalados).
+cat /etc/apt/sources.list (Muestra el contenido del archivo donde están escritos los repositorios a los que accede Linux para descargar software)
+apt-cache search bashtop (Busca en la base de datos de software si existe el programa)
+sudo apt install bashtop -y (Descarga e instala el programa)
+bashtop (Ejecuta el programa)
+sudo apt purge bashtop -y  (Desinstala el programa y también borra los archivos de configuración)
+sudo apt autoremove -y (Borra las dependencias que se instalaron automáticamente con bashtop y que ya no son necesarias)
+
+==============================
+Tareas de Crontab y AT
+==============================
+sudo crontab -e (Abre el editor para programar tareas)
+###Tarea 1: Actualizar el sistema todas las tardes a las 11 PM (23:00)###
+	0 23 * * * apt update && apt upgrade -y
+
+###Tarea 2: Reiniciar la máquina todos los domingos a las 3 AM##
+	0 3 * * 0 /sbin/reboot
+
+sudo crontab -l (Lista las tareas programadas)
+ls /tmp (Lista el contenido de la carpeta temporal)
+
+sudo apt install at (Instala el programador de tareas que no tenia)
+##Programar la eliminación de tmp en 1 minuto##
+echo "rm -rf /tmp/" | sudo at now + 1 minute (Programa el borrado de la carpeta temporal en un minuto)
+atq (Muestra la cola de tareas programadas)
+ls /tmp (Confirmo que la carpeta esta vacia)
+
+==============================
+Añadir un disco o particion extra
+==============================
+1. Crear un disco en la configuraciones de la maquina virtual
+2. SCSI recomendado
+3.Elegir cantidad de GB
+4.Seleccionar 'Store virtual disk as a single file'
+
+lsblk (Listar todos los discos y particiones)
+sudo mkfs.ext4 /dev/sdb (Formatea el disco en formato ext4)
+cd Desktop (Entro de root a escritorio)
+mkdir Nuevo_Disco (Creo nueva carpeta)
+sudo mount /dev/sdb ~/Desktop/Nuevo_Disco (Monto el disco a la nueva carpeta creada)
+
+cd Nuevo_Disco (Entro a la carpeta)
+sudo touch AdrianAlcantara.txt (Creo el archivo txt en la carpeta)
+ls -l (Listo el contenido de la carpeta)
+cd .. (Voy atras al Desktop)
+sudo umount /dev/sdb (Desmonto el disco)
+sudo mount /dev/sdb /mnt (Monto el disco en carpeta temporal mnt)
+cd /mnt (Entro a la carpeta mnt)
+ls -l (Listo el contenido de la carpeta mnt)
+
+
+

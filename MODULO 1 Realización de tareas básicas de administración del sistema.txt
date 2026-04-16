@@ -1,0 +1,86 @@
+-------------------------------------
+Configuración de parametros de red.
+-------------------------------------
+##CON EL NMCLI##
+nmcli con show 
+(Para visualizar el nombre de la conexión)
+
+sudo nmcli con mod "Wired connection 1" ipv4.method auto 
+(Para cambiar al metodo automatic o dhcp con el comando nmcli)
+
+sudo nmcli con up "Wired connection 1" (Activar la red)
+ip a show eth0 (Confirmo cambios de IP)
+
+(Cambiar a una IP estatica con el comando nmcli)
+sudo nmcli con mod "Wired connection 1" ipv4.address 192.168.102.10/24
+sudo nmcli con mod "Wired connection 1" ipv4.gateway 192.168.102.1
+sudo nmcli con mod "Wired connection 1" ipv4.method manual
+sudo nmcli con up "Wired connection 1"
+
+ip a show eth0 (Confirmo cambios de IP)
+
+##A TRAVES DE EDICION DE NETWORK##
+/etc/network (Ir a la carpeta network para editar el archivo de interfaces)
+
+(Modificar IP con DHCP)
+sudo nano interfaces
+		auto eth0
+		iface eth0 inet dhcp. 
+
+systemctl restart networking (Se restaura la red para que los cambios se apliquen)
+
+(Modificar IP estatica)
+sudo nano interfaces 
+		auto eth0
+		iface eth0 inet static
+    			address 192.168.102.80    
+    			netmask 255.255.255.0
+    			gateway 192.168.102.1
+systemctl restart networking (Se restaura la red para que los cambios se apliquen)
+
+##Modificar IP con comando dhclient##
+sudo dhclient -r eth0 (Se elimina la IP DHCP anterior)
+sudo dhclient eth0 (Se activa el modo DHCP)
+ip a show eth0 (Confirmo cambios de IP)
+
+###Modificar IP estatica temporal##
+sudo ip addre add 192.168.21.40/24 dev eth0 (Añadir IP temporal)
+sudo ip route add default via 192.168.21.1 (Añadir gateway)
+ip a show eth0 (Confirmo cambios de IP)
+
+##Configurar DNS de Google con comando nmcli##
+sudo nmcli con mod "Wired connection 1" ipv4.dns "8.8.8.8,8.8.4.4"
+sudo nmcli con up "Wired connection 1"
+cat /etc/resolv.conf (Confirmo DNS)
+
+-------------------------------------
+Gestion de Usuario y grupos
+-------------------------------------
+adduser lissett (Añado nuevo usuario)
+usermod -aG sudo lissett(Agrego usuario a sudo)
+groups lissett (Confirmo los grupos del usuario)
+addgroup guest (Creo el nuevo grupo)
+adduser maria (Creo nuevo usuario)
+usermod -aG guest maria (Agrego usuario a grupo creado anteriormente)
+groups maria (confirmo los grupos del usuario)
+delgroup guest (Elimino el grupo)
+deluser maria (Elimino el usuario)
+
+-------------------------------------
+Gestion de Permisos de archivos
+-------------------------------------
+cd Desktop (Entro para crear las nuevas carpetas aqui)
+mkdir Materia (Creo nuevo directorio)
+cd Materia
+vi estudiantes.txt(Creo nuevo archivo dentro de carpeta creada)
+ls -l (Observo los permisos de los archivos)
+chmod u+x,g=---,o=--- estudiantes.txt (Agrego permiso de ejecucion al usuario el cual hacia falta para control total del archivo y retiro todos los permisos de grupos y otros)
+ls -l (Verifico permisos)
+chmod 070 estudiantes.txt (Cambio permisos de los grupos para que tengan control total y retiro permisos de usuarios y otros)
+ls -l (Verifico permisos)
+cd ..
+mkdir Materia2 (Creo nuevo directorio)
+cd Materia
+cp estudiantes.txt /home/laudys/Desktop/Materia2 (Copio archivo creado en carpeta inicial a la segunda carpeta creada)
+chmod 770 estudiantes.txt (Doy control total al usuario nuevamente para poder remover directorio con archivo)
+rm -r Materia (elimino carpeta)

@@ -1,0 +1,58 @@
+============================================
+Edicion del Grub2. Tiempo y contraseña
+============================================
+sudo nano /etc/default/grub (Abre la configuración de GRUB para editar el timeout)
+sudo update-grub (Aplica los cambios de GRUB para el próximo arranque)
+sudo reboot (Reinicia el sistema operativo)
+
+TECLA 'e' (Permite editar temporalmente las opciones de arranque en GRUB)
+	***Buscar ro quiet splash y cambiarlo por ****
+rw init=/bin/bash (Se agrega en la línea del kernel para iniciar en bash con permisos de escritura)
+passwd laudys (Cambia la contraseña del usuario laudys)
+reboot -f (Fuerza el reinicio del sistema)
+
+====================================
+Script para backup
+====================================
+nano backup_home.sh (Creo el script de backup)
+
+#!/bin/bash
+FECHA=$(date +"%d-%m-%Y:%H:%M")(Creo variable de fecha actual)
+tar -czvf /home/laudys/backup_$FECHA.tar.gz /home/laudys/ (Comprime el home en un .tar.gz con la fecha en el nombre)
+echo "Backup finalizado" (Muestra mensaje al usuario al terminar)
+
+
+chmod +x backup_home.sh (Da permisos de ejecución al script)
+./backup_home.sh (Ejecuta el script de backup)
+
+
+====================================
+Script para ifconfig
+====================================
+nano script_nombre.sh      (Crear el segundo script)
+
+#!/bin/bash
+echo -n "Introduzca el nombre que desea ponerle al archivo: "(Pide el nombre del archivo al usuario)
+read NOMBRE (Crea espacio para que usuario inserte nombre)
+DESTINO="/home/laudys/Desktop/$NOMBRE.txt" (Variable que define la ruta donde se guardará el archivo)
+ifconfig > "$DESTINO" (Guarda la salida de ifconfig en el archivo)
+echo "Los datos de ifconfig se han guardado en: $DESTINO" (Dice al usuario la ruta del archivo guardado)
+
+chmod +x script_nombre.sh (Da permisos de ejecución al archivo)
+./script_nombre.sh (Ejecuta el script)
+
+====================================
+Configurar SSH y conexion
+==================================== 
+sudo apt update (Actualiza la lista de paquetes en repositorios)
+sudo apt install openssh-server (Instala el servidor SSH)
+sudo systemctl start ssh (Inicia el servicio SSH)
+sudo systemctl enable ssh(Hace que SSH inicie automáticamente al arrancar)
+sudo systemctl status ssh (Muestra el estado del servicio SSH)
+ssh laudys@192.168.0.27 (Conecta por SSH al equipo remoto desde mi host Windows)
+ssh-keygen -t rsa -b 4096 (Genera un par de llaves RSA de 4096 bits)
+mkdir -p ~/.ssh (Crea el directorio .ssh)
+chmod 700 ~/.ssh(Asigna permisos al directorio .ssh)
+echo "LLAVE PUBLICA GENERADA" >> ~/.ssh/authorized_keys (Agrega la clave pública al archivo)
+chmod 600 ~/.ssh/authorized_keys  (Asigna permisos al archivo)
+ssh laudys@192.168.0.27 (Verifico la conexion SSH sin clave)
