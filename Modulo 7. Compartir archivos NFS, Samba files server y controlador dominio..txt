@@ -1,0 +1,164 @@
+====================================
+NFS compartir archivos entre Linux
+====================================
+############ SERVIDOR NFS ############
+sudo apt update (Actualiza la lista de paquetes).
+sudo apt install nfs-kernel-server -y (Instala el software para convertir el equipo en un servidor de archivos en red).
+sudo mkdir /OS3 (Crea el directorio que se compartirá con otros equipos).
+sudo touch Adrian{1..100}.txt (Genera automáticamente 100 archivos de texto vacíos).
+sudo chmod 755 /OS3 (Asigna permisos de lectura y ejecución para todos, y escritura solo para el dueño).
+
+sudo nano /etc/exports (Abre el archivo de configuración donde se definen qué carpetas se comparten y con quién).
+/OS3 192.168.0.26(rw,sync,no_subtree_check) (Define que la carpeta /OS3 es accesible para la IP .26 CLIENTE con permisos de lectura y escritura).
+
+sudo exportfs -ra (Actualiza la tabla de archivos compartidos sin necesidad de reiniciar todo el servicio).
+
+sudo systemctl restart nfs-kernel-server (Reinicia el servicio del servidor NFS para aplicar todos los cambios).
+
+sudo exportfs -v (Muestra una lista detallada de los directorios que se están compartiendo actualmente).
+
+sudo ufw allow from 192.168.0.26 (Permite que el tráfico proveniente de la IP del cliente pase a través del firewall).
+sudo ufw reload (Recarga las reglas del firewall).
+
+
+############# CLIENTE NFS #######################
+sudo apt install nfs-common -y (Instala las herramientas para poder conectarse a recursos compartidos por NFS).
+
+showmount -e 192.168.0.22 (Consulta al SERVIDOR para verificar qué carpetas tiene disponibles para compartir).
+sudo mkdir /mnt/nfs_os3 (Crea un punto de montaje local).
+sudo mount 192.168.0.22:/OS3 /mnt/nfs_os3 (Conecta manualmente la carpeta remota del servidor con la carpeta local del cliente).
+ls /mnt/nfs_os3 (Lista los archivos para verificar que la conexión se realizó con éxito y los archivos existen).
+
+sudo nano /etc/fstab (Edita el archivo que gestiona los montajes automáticos al iniciar el sistema).
+192.168.0.22:/OS3 /mnt/nfs_os3 nfs defaults 0 0 (Añade la instrucción para que la carpeta de red se monte sola cada vez que se reinicia).
+
+sudo mount -a (Monta todos los dispositivos indicados en el fstab para verificar que no haya errores de sintaxis).
+sudo reboot (Reinicia el equipo).
+ls /mnt/nfs_os3 (Verificación final de que el acceso sigue activo).
+
+==============================
+SAMBA Windows files con linux.
+==============================
+sudo apt install samba -y (Instala Samba).
+sudo systemctl enable smbd (Configura el servicio Samba para que se inicie automáticamente al iniciar sistema).
+sudo systemctl start smbd (Inicia el funcionamiento del servidor Samba de forma inmediata).
+sudo ufw allow samba (Abre los puertos necesarios en el firewall para permitir el tráfico de red de Samba).
+sudo mkdir /samba_os3 (Crea la carpeta que se va a compartir en la red).
+
+#####Crear usuarios y grupos y dar persmiso a carpeta####
+sudo groupadd grupo_samba (Crea un grupo específico para gestionar los accesos a Samba).
+sudo useradd -m -g grupo_samba user_samba (Crea un nuevo usuario y lo asigna al grupo de Samba).
+sudo smbpasswd -a user_samba (Establece la contraseña específica que usará el usuario para acceder a la carpeta compartida desde otros equipos).
+
+sudo chown -R user_samba:grupo_samba /samba_os3 (Cambia el propietario y el grupo de la carpeta compartida para que el usuario creado tenga control sobre ella).
+
+sudo chmod 777 /samba_os3 (Otorga permisos totales de lectura, escritura y ejecución a todos los usuarios en esa carpeta).
+
+cd /samba_os3
+sudo touch Adrian{1..100}.txt
+ls
+
+#### Archivo de configuracion SAMBA ####
+sudo nano /etc/samba/smb.conf (Abre el archivo de configuración principal de Samba para definir los parámetros del recurso compartido).
+	### Al final de archivo agregar ####
+[OS3]
+path = /samba_os3
+browseable = yes
+read only = no
+guest ok = no
+valid users = user_samba
+create mask = 0777
+directory mask = 0777
+
+
+sudo systemctl restart smbd (Reinicia el servicio para que se apliquen todos los cambios realizados en el archivo de configuración).
+
+smbclient -L localhost -N (comprobar que el recurso compartido existe)
+
+
+#### DESDE VM DE WINDOWS ####
+abre el explorador de archivos o presiona Win + R y escribe:
+\\192.168.0.22\OS3
+
+
+ #### EN CASO DE ERRORES ABRIR CMD WINDOWS COMO ADMIN ###
+
+net use * /delete (Desconecta todas las unidades de red activas para evitar conflictos con nuevas conexiones en Windows).
+
+net use \\192.168.0.22\OS3 /user:user_samba (En Windows conecta la carpeta compartida del servidor Linux como una unidad de red usando las credenciales del usuario creado ).
+ 
+### SI HAY ERROR AUN EN LINUX #####
+sudo chown -R user_samba:grupo_samba /samba_os3
+sudo chmod 777 /samba_os3
+
+
+==============================
+Controlador de Dominio para Windows
+==============================
+###Instalar samba y dependencias### 
+sudo apt install samba krb5-user winbind smbclient -y
+Samba-tool –version
+
+###Respaldar la configuración de samba##
+sudo mv /etc/samba/smb.conf /etc/samba/smb.conf.bak 
+
+####Crear el dominio con Samba ### 
+sudo samba-tool domain provision
+Realm: SO3.INET (Escríbelo en mayúsculas).
+Domain: SO3
+Server Role: dc
+DNS Backend: SAMBA_INTERNAL
+DNS Forwarder: 8.8.8.8
+Administrator Password: 20250825L@
+
+###Configurar kerberos###: 
+sudo cp /var/lib/samba/private/krb5.conf /etc/krb5.conf
+
+
+### Detenemos servicios samba tradicionales y los deshabilitamos###
+sudo systemctl stop smbd nmbd winbind 
+sudo systemctl disable smbd nmbd winbind 
+
+
+#### Activamos el controlador de dominio:### 
+sudo systemctl unmask samba-ad-dc 
+sudo systemctl enable samba-ad-dc 
+sudo systemctl start samba-ad-dc
+
+
+###Crear nuevo usuario del dominio###
+sudo samba-tool user create lanegracubana
+Pass:  20250825L@
+
+samba-tool user list
+
+
+#### Configurar nuestro Windows###
+Primero, configuramos el DNS: 
+>Panel de control 
+>Centro de redes 
+>Cambiar configuración del adaptador 
+>Propiedades 
+>IPv4
+ DNS -> Pon la IP de tu Kali.
+
+####Verificamos en CMD la resolución del dominio, donde debería mostrar la info de nuestro server ###
+nslookup SO3.INET
+
+Ahora uniremos nuestro Windows al dominio: 
+> Vamos a sistema 
+> Configuración avanzada del sistema 
+> Nombre del equipo 
+> Cambiar 
+> Seleccionamos Dominio 
+> Escribimos: SO3.INET 
+> Usuario: Administrator 
+> Contraseña: 20250825L@ 
+> Reiniciar windows
+
+
+Iniciamos sesión en el dominio:
+lanegracubana@SO3.INET  
+o SO3.INET\lanegracubana
+Pass>  20250825L@
+

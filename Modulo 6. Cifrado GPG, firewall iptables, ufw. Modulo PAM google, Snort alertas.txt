@@ -1,0 +1,96 @@
+==================
+Cifrado con GPG
+===================
+sudo apt update (actualiza la lista de paquetes disponibles)
+sudo apt install gnupg2 -y (instala gnupg2 para poder cifrar archivos)
+mkdir practica_cifrado (crea una carpeta para la práctica)
+cd practica_cifrado (entra a la carpeta creada)
+echo "Mi nombre es Laudys" > Documento.txt (crea un archivo de texto con ese contenido)
+gpg -c Documento.txt (cifra el archivo usando contraseña de manera simetrica)
+rm Documento.txt (elimina el archivo original sin cifrar)
+cat Documento.txt.gpg (muestra el archivo cifrado en la terminal)
+gpg -d Documento.txt.gpg > Documento_Descifrado.txt (descifra el archivo y guarda el contenido en otro archivo sin cifrar)
+cat Documento_Descifrado.txt (muestra el contenido del archivo descifrado)
+
+
+==============================
+IP tables - UFW/Firewall-cmd 
+==============================
+sudo apt install vsftpd -y (instala el servidor FTP vsftpd)
+sudo systemctl start vsftpd (inicia el servicio FTP)
+sudo systemctl enable vsftpd (configura el servicio para que inicie con el sistema)
+
+#### Verificar que los servicios HTTP, FTP y SSH están activos ####
+sudo systemctl status apache2 (muestra el estado del servidor web Apache)
+sudo systemctl status vsftpd (muestra el estado del servicio FTP)
+sudo systemctl status ssh (muestra el estado del servicio SSH)
+
+###IPTables
+sudo iptables -A INPUT -p tcp --dport 80 -j DROP (bloquea conexiones al puerto 80 HTTP)
+sudo iptables -A INPUT -p tcp --dport 21 -j DROP (bloquea conexiones al puerto 21 FTP)
+sudo iptables -A INPUT -p tcp --dport 22 -j DROP (bloquea conexiones al puerto 22 SSH)
+
+sudo iptables -L (muestra las reglas actuales del firewall)
+### Verificar conectandose por uno de los servicios###
+
+### Habilitar servicios nuevamente con Iptables ###
+sudo iptables -D INPUT -p tcp --dport 80 -j DROP (elimina la regla que bloquea el puerto 80)
+sudo iptables -D INPUT -p tcp --dport 21 -j DROP (elimina la regla que bloquea el puerto 21)
+sudo iptables -D INPUT -p tcp --dport 22 -j DROP (elimina la regla que bloquea el puerto 22)
+
+sudo iptables -L (muestra nuevamente las reglas del firewall)
+
+
+### Bloquear puestos con UFW ###
+sudo apt install ufw -y (instala el firewall UFW)
+sudo ufw enable (activa el firewall UFW)
+sudo ufw deny 80 (bloquea el puerto 80 en el firewall)
+sudo ufw deny 21 (bloquea el puerto 21 en el firewall)
+sudo ufw deny 22 (bloquea el puerto 22 en el firewall)
+sudo ufw status (muestra el estado y reglas del firewall)
+ 
+### Habilitar puertos con UFW ###
+sudo ufw allow 80 (permite nuevamente el puerto 80)
+sudo ufw allow 21 (permite nuevamente el puerto 21)
+sudo ufw allow 22 (permite nuevamente el puerto 22)
+sudo ufw status (muestra las reglas actuales del firewall)
+
+=============================
+Instalar y configurar Snort
+=============================
+sudo apt update (actualiza la lista de paquetes del sistema)
+sudo apt install snort -y (instala el IDS Snort)
+
+sudo nano /etc/snort/rules/local.rules (abre el archivo para agregar reglas de Snort)  
+alert icmp any any -> any any (msg:"ALERTA: PING DETECTADO"; sid:1000001; rev:1;) 
+alert tcp any any -> any 21 (msg:"ALERTA: TRAFICO FTP"; sid:1000002; rev:1;) 
+alert tcp any any -> any 22 (msg:"ALERTA: TRAFICO SSH"; sid:1000003; rev:1;) 
+alert tcp any any -> any 80 (msg:"ALERTA: TRAFICO HTTP"; sid:1000004; rev:1;)
+
+sudo snort -R /etc/snort/rules/local.rules -i eth0 -A alert_fast (ejecuta Snort usando esas reglas y muestra alertas en tiempo real)
+
+## Probar las reglas haciendo ping, conexiones ssh, entrando a la web o ftp ###
+
+===============================
+Modulo PAM Google Authenticator
+===============================
+sudo apt update (actualiza la lista de paquetes del sistema)
+
+sudo apt install libpam-google-authenticator -y (instala el módulo para autenticación en dos pasos)
+
+google-authenticator (configura el 2FA y genera el código QR y claves)
+  ####Se debe escanear y luego ingresas el codigo que nos dara en el 	authenticador. Luego dar a YES a todo
+
+sudo nano /etc/pam.d/sshd (abre la configuración PAM de SSH)
+##Agregar al final del doc ####
+auth required pam_google_authenticator.so
+
+### Configurar SSH para solicitar la autenticacion de 2FA #
+sudo nano /etc/ssh/sshd_config (abre la configuración del servidor SSH)
+KbdInteractiveAuthentication yes (habilita autenticación interactiva por teclado)
+UsePAM yes (permite que SSH use módulos PAM)
+	##Agregar al final del doc##
+AuthenticationMethods publickey,keyboard-interactive (requiere clave y código 2FA para entrar)
+
+#Reiniciar el servicio SSH y hacer prueba desde maquina host
+sudo systemctl restart ssh (reinicia el servicio SSH para aplicar cambios)

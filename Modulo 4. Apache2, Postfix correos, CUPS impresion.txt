@@ -1,0 +1,120 @@
+==================================== 
+Instalar un servidor HTTP apache2
+====================================
+sudo apt update (Actualiza la lista de paquetes disponibles).
+sudo apt install apache2 -y (Instala el servidor web Apache).
+sudo systemctl start apache2 (Inicia el servicio del servidor Apache).
+sudo systemctl enable apache2 (Configura Apache para que se inicie automáticamente al encender).
+sudo systemctl status apache2 (Verifica si el servidor está activo y funcionando).
+
+###Crear Website Estatico Hola Mundo####
+sudo mkdir -p /var/www/sitio80 (Crea la carpeta donde se guardarán los archivos del primer sitio web)
+sudo nano /var/www/sitio80/index.html (Crea contenido visual de la página para el puerto 80).
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hola Mundo</title>
+</head>
+<body>
+    <h1>Hola Mundo</h1>
+</body>
+</html>
+
+###Crear el host virtual para que escuche en el puerto 80###
+sudo nano /etc/apache2/sites-available/sitio80.conf (Crea el archivo de configuración para definir el comportamiento del sitio 80).
+<VirtualHost *:80> 
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/sitio80
+    ErrorLog ${APACHE_LOG_DIR}/error.log 
+    CustomLog ${APACHE_LOG_DIR}/access.log combined
+</VirtualHost>
+
+sudo a2dissite 000-default.conf (Desactiva el sitio web que Apache trae configurado por defecto).
+sudo a2ensite sitio80.conf (Activa el nuevo sitio web para el puerto 80).
+sudo systemctl restart apache2 (Reinicia Apache para que aplique todos los cambios).
+
+
+###Servidor Web en puerto 8080####
+sudo mkdir -p /var/www/sitio8080 (Crea la carpeta separada para los archivos del segundo sitio web).
+sudo nano /var/www/sitio8080/index.html (Crea el contenido visual de la página para el puerto 8080).
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Laudys Gonzalez</title>
+</head>
+<body>
+    <h1>Laudys Gonzalez</h1>
+    <h1>Matricula 2025-0825</h1>   
+    <h1>Sistemas Operativos 3</h1>
+</body>
+</html>
+
+sudo nano /etc/apache2/ports.conf (Edita el archivo donde se le ordena a Apache que escuche en el puerto 8080).
+	***Añadir ''Listen 8080''
+sudo nano /etc/apache2/sites-available/sitio8080.conf (Crea la configuración para que el puerto 8080 ingrese a su propia carpeta).
+<VirtualHost *:8080>
+    ServerAdmin webmaster@localhost
+    DocumentRoot /var/www/sitio8080
+    ErrorLog ${APACHE_LOG_DIR}/error_8080.log
+    CustomLog ${APACHE_LOG_DIR}/access_8080.log combined
+</VirtualHost>
+
+
+sudo a2ensite sitio8080.conf (Activa el segundo sitio web en el sistema).
+sudo systemctl restart apache2 (Reinicia el servicio).
+
+
+==============================
+Servidor de correos Postfic
+==============================
+sudo apt install postfix mailutils -y (Instala el servidor de correos y las herramientas para enviar mensajes desde la terminal).
+	**General type of mail configuration: Selecciona Internet Site.
+	**System mail name: kali.local
+
+
+sudo postconf -e "myhostname = kali.local" (Define el nombre de dominio local que identificará el servidor de correos).
+sudo postconf -e "inet_protocols = ipv4" (Configura el servidor para que utilice exclusivamente el protocolo de red IPv4).
+
+sudo nano /etc/postfix/sasl_passwd (Crea el archivo donde se guardan el servidor de Google y contraseña de aplicación).
+[smtp.gmail.com]:587 tu-correo@gmail.com:tuclave16letras
+
+sudo chmod 600 /etc/postfix/sasl_passwd (Restringe los permisos del archivo para que solo el administrador pueda leer la contraseña).
+sudo postmap /etc/postfix/sasl_passwd (Indexa el archivo de contraseña para que Postfix pueda leerlo como una base de datos).
+
+sudo nano /etc/postfix/main.cf (Edita la configuración principal para añadir los parámetros de seguridad y el relay de Gmail).
+	###Ve al final del archivo y asegúrate de que no existan líneas 	repetidas de smtp_tls_security_level. Pega este bloque:
+
+relayhost = [smtp.gmail.com]:587
+smtp_sasl_auth_enable = yes
+smtp_sasl_password_maps = hash:/etc/postfix/sasl_passwd
+smtp_sasl_security_options = noanonymous
+smtp_tls_security_level = encrypt
+smtp_tls_CAfile = /etc/ssl/certs/ca-certificates.crt
+
+
+sudo newaliases (Actualiza la base de datos de alias de correo del sistema).
+sudo systemctl restart postfix (Reinicia el servicio para que el servidor reconozca toda la nueva configuración).
+mail -s "MambruSeFueALaGuerra" os3conadrian@gmail.com (Comando para redactar y enviar el correo de prueba con un asunto específico).
+
+===========================
+Servidor de Impresion CUPS
+===========================
+sudo apt install cups printer-driver-cups-pdf -y (Instala el sistema de impresión CUPS y el controlador para generar archivos PDF).
+sudo cupsctl --remote-admin --remote-any --share-printers (Habilita la administración remota y permite compartir la impresora con otros equipos de la red).
+lpinfo -m | grep "PDF" (Busca en el sistema todos los controladores disponibles que sean compatibles con el formato PDF).
+sudo lpadmin -p PDF_Virtual -v cups-pdf:/ -E -m lsb/usr/cups-pdf/CUPS-PDF_opt.ppd (Crea la impresora, la activa y le asigna el controlador específico).
+sudo lpadmin -p PDF_Virtual -o auth-info-required=none (Configura la impresora para que no pida usuario ni contraseña al imprimir desde Windows).
+sudo systemctl restart cups (Reinicia el servicio de impresión para aplicar todos los cambios de red y permisos).
+
+###Configurar en pc cliente###
+1.Abre el Panel de Control > Dispositivos e impresoras.
+2.Haz clic en Agregar una impresora y luego en La impresora que quiero no está en la lista.
+3.Selecciona Seleccionar una impresora compartida por nombre y escribe la URL (usa hostname -I en Kali para ver tu IP): http://TU_IP_DE_KALI:631/printers/PDF_Virtual
+4. Selección del Driver en Windows:
+	Fabricante: Generic
+	Modelo: MS Publisher Color Printer (o Generic MS Publisher 	Imagesetter).
+	Nota: Si Windows te pregunta si quieres reemplazar el 	controlador, dile que sí.
+5. Imprime algo seleccionando la impresora.
+
+
+ls -l /var/spool/cups-pdf/ANONYMOUS/ (Lista el contenido de la carpeta donde se guardan los documentos PDF generados para verificar que la impresión fue exitosa).

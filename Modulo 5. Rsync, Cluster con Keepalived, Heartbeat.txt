@@ -1,0 +1,182 @@
+=======================
+Sincronizar con Rsync
+=======================
+mkdir 100Archvios (Crea un directorio)
+cd 100Archivos (Ingresa al directorio 100Archivos)
+touch Hoja{1..100}.txt (Crea 100 archivos de texto numerados del 1 al 100)
+
+sudo apt install rsync -y (Instala la herramienta rsync automáticamente sin pedir confirmación)
+
+ssh-keygen -t rsa  (Genera un par de claves SSH usando el algoritmo RSA)
+ssh-copy-id laudys@192.168.0.26 (Copia la clave pública al servidor remoto para permitir autenticación sin contraseña)
+
+##Sincronizacion de archivo entre equipos###
+rsync -avz /home/laudys/Desktop/100Archivos laudys@192.168.0.26:/home/laudys/Desktop (Sincroniza la carpeta 100Archivos al equipo remoto mediante SSH)
+
+ls /home/laudys/Desktop/100Archivos (Lista el contenido del directorio 100Archivos)
+
+##Script de sincronizacion###
+nano ~/sync.sh (Crea un archivo llamado sync.sh para crear el script)
+#!/bin/bash  (Indica que el script debe ejecutarse con el intérprete Bash)
+rsync -avz /home/laudys/Desktop/100Archivos laudys@192.168.0.26:/home/laudys/Desktop  (Define el comando que sincroniza los archivos con el equipo remoto en el escript)
+
+chmod +x ~/sync.sh (Asigna permisos de ejecución al script sync.sh)
+
+##Programar tarea con la sincronizacion###
+crontab -e  (Abre el editor para programar tareas automáticas con cron)
+* * * * * /home/laudys/sync.sh  (Programa la ejecución del script cada minuto)
+
+touch ~/Desktop/100Archivos/Nuevo_Doc.txt  (Crea un nuevo archivo dentro de la carpeta 100Archivos)
+
+ls ~/Desktop/100Archivos/  (Muestra el contenido actualizado del directorio en el nodo2)
+
+
+=========================================
+Instalar y configurar Cluster Heartbeat
+========================================
+	(Nombrar cada VM o nodo)
+sudo hostnamectl set-hostname nodo1 
+sudo nano /etc/hosts
+127.0.0.1 localhost #AGREGAR HOSTNAME#
+::1 localhost ip6-localhost ip6-loopback
+
+sudo hostnamectl set-hostname nodo2
+sudo nano /etc/hosts
+127.0.0.1 localhost #AGREGAR HOSTNAME#
+::1 localhost ip6-localhost ip6-loopback
+
+Reboot ambos.
+
+###Configurar ips de cada nodo####
+	### NODO 1 ###
+sudo nano /etc/network/interfaces (Edita el archivo de configuración de red para establecer ip estatica)
+auto eth0
+iface eth0 inet static
+address 192.168.0.20        
+netmask 255.255.255.0
+gateway 192.168.0.1
+
+sudo systemctl restart networking  (Reinicia el servicio de red para aplicar cambios)
+
+	### NODO 2 ###
+sudo nano /etc/network/interfaces (Edita el archivo de configuración de red para establecer ip estatica)
+auto eth0
+iface eth0 inet static
+address 192.168.0.26       
+netmask 255.255.255.0
+gateway 192.168.0.1
+
+sudo systemctl restart networking  (Reinicia el servicio de red para aplicar cambios)
+
+### CONFIRMAR PING ENTRE MAQUINAS ###
+
+### Instalar HEARTBEAT en cada nodo ###
+sudo apt update  (Actualiza la lista de paquetes disponibles en el sistema)
+sudo apt install heartbeat -y (Instala el servicio Heartbeat sin pedir confirmación)
+
+sudo nano /etc/ha.d/authkeys (Edita el archivo de claves de autenticación de Heartbeat)
+auth 1 
+1 sha1 #TuPasswordSecreta#        
+
+sudo chmod 600 /etc/ha.d/authkeys  (Asigna permisos seguros al archivo de autenticación para proteger la clave)
+
+sudo nano /etc/ha.d/ha.cf  (Edita el archivo principal de configuración de Heartbeat)
+debugfile /var/log/ha-debug (Define el archivo donde se guardarán los mensajes de depuración)
+logfile /var/log/ha-log  (Define el archivo donde se almacenarán los registros del servicio)
+logfacility local0  (Especifica la facilidad de logs utilizada por el sistema)
+keepalive 2 (Establece que se envíe un latido cada 2 segundos)
+deadtime 10 (Define que un nodo se considera inactivo tras 10 segundos sin respuesta)
+warntime 5 (Indica el tiempo para generar advertencia antes de declarar fallo)
+initdead 15 (Define el tiempo de espera inicial al arrancar el servicio)
+udpport 694 (Establece el puerto UDP usado para comunicación entre nodos)
+bcast eth0  (Indica la interfaz de red utilizada para enviar latidos por broadcast)
+auto_failback on  (Activa el retorno automático del servicio al nodo principal cuando se recupere)
+node nodo1 (Define el nombre del primer nodo del clúster)
+node nodo2 (Define el nombre del segundo nodo del clúster)
+
+###Asignar IP Virtual para ambos nodos###
+sudo nano /etc/ha.d/haresources (Edita el archivo donde se configuran los recursos compartidos) 
+# Formato: NombreNodoPrincipal IP_Virtual/Mascara/Interfaz
+nodo1 192.168.0.100/24/eth0  (Asigna una IP virtual al nodo1)
+
+sudo systemctl start heartbeat (Inicia el servicio Heartbeat)
+
+ip a show eth0  (Muestra la direcciones IP de la interfaz eth0)
+
+
+##Simulacion de failover###
+sudo systemclt stop heartbeat  (Apaga el servicio heartbeat para simular la caída del nodo)
+ip a show eth0  (Verifica la IP activa en nodo2 después del apagado del nodo principal)
+ping 192.168.0.100  (Comprueba la conectividad hacia la IP virtual del clúster aun con el nodo 1 apagado)
+
+
+===================================
+Configurar Keepalived (WEB APACHE)
+=====================================
+### Descargar en ambos nodos ###
+sudo apt install keepalived -y (Instala el servicio Keepalived sin pedir confirmación)
+
+sudo nano /etc/keepalived/keepalived.conf (Abre el archivo de configuración de Keepalived para editarlo)
+	### NODO1 ###
+vrrp_instance VI_1 {
+    state MASTER (Define este servidor como principal)
+    interface eth0 (Indica la interfaz de red que se va a usar)
+    virtual_router_id 51 (Identificador del router virtual, debe ser el mismo en ambos servidores) 
+    priority 100 (Prioridad alta para que este servidor sea el principal) 
+    advert_int 1 (Tiempo en segundos entre anuncios VRRP)
+    authentication {
+        auth_type PASS(Tipo de autenticación por contraseña)
+        auth_pass 1234 (Contraseña compartida entre los nodos)
+    }
+    virtual_ipaddress {
+        192.168.0.200 (IP virtual que se moverá entre servidores)
+    }
+}
+
+ 	### NODO2 ###
+vrrp_instance VI_1 {
+    state BACKUP (Define este servidor como secundario)
+    interface eth0 (Interfaz de red utilizada)
+    virtual_router_id 51(Debe coincidir con el del servidor principal)
+    priority 50 (Prioridad menor para que solo actúe si cae el principal)
+    advert_int 1 (Intervalo de anuncios en segundos)
+    authentication {
+        auth_type PASS(Autenticación por contraseña)
+        auth_pass 1234 (Misma contraseña que el servidor principal)
+    }
+    virtual_ipaddress {
+        192.168.0.200 (IP virtual compartida entre ambos servidores)
+    }
+}
+
+
+### Crear WEB en nodo 1 y nodo 2 ###
+
+sudo mkdir -p /var/www/cluster_web(Crea el directorio donde se alojará la página web)
+
+sudo nano /etc/apache2/sites-available/cluster_web.conf(Crea el archivo de configuración del sitio en Apache)
+<VirtualHost *:80> (Define un sitio web que escucha en el puerto 80)
+    DocumentRoot /var/www/cluster_web (Carpeta donde están los archivos del sitio)
+    ServerName localhost (Nombre del servidor)
+</VirtualHost>
+
+### Contenido de la pagina en nodo 1 ###
+echo "<h1> Servidor 1 </h1>" | sudo tee /var/www/cluster_web/index.html (Crea el archivo index.html con el mensaje del Servidor 1)
+
+### Contenido de la pagina en nodo 2 ###
+echo "<h1> Servidor 2 </h1>" | sudo tee /var/www/cluster_web/index.html (Crea el archivo index.html con el mensaje del Servidor 2)
+
+#### Activar en ambos nodos ###
+sudo a2ensite cluster_web.conf(Activa el sitio web en Apache)
+
+sudo systemctl restart apache2 (Reinicia el servicio Apache para aplicar cambios)
+
+sudo systemctl start keepalived (Inicia el servicio Keepalived)
+
+## Ir al navegador de mi host windows y poner ip virtual compartida ###
+http://192.168.0.200:88
+
+sudo systemctl stop keepalived (Detiene el servicio Keepalived)
+
+
+##Al actualizar debe salir la pagina del nodo 2 ###
