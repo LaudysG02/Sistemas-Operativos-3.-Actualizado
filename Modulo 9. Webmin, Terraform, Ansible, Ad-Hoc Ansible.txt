@@ -1,0 +1,222 @@
+==================
+ Instalar Webmin
+==================
+
+sudo apt update
+(Actualiza la lista de paquetes disponibles)
+
+sudo apt install wget apt-transport-https software-properties-common -y
+(Instala herramientas necesarias para descargar paquetes)
+
+wget http://www.webmin.com/download/deb/webmin-current.deb
+(Descarga el paquete .deb de Webmin en su pagina oficial)
+
+sudo dpkg -i webmin-current.deb
+(Instala el paquete descargado)
+
+#####Si da error de dependencias#####
+sudo apt --fix-broken install -y
+(Corrige dependencias faltantes en la instalación)
+
+####INICIAR WEBMIN####
+sudo systemctl start webmin
+(Inicia el servicio de Webmin)
+
+sudo systemctl enable webmin
+(Activa Webmin para que inicie automáticamente)
+
+#### Acceder desde navegador###
+https://127.0.0.1:10000
+
+### rutas ###
+1. Administración de usuarios
+ System → Users and Groups
+
+2. Gestión de servicios
+ System → Bootup and Shutdown
+
+3. Configuración de red (IP estática)
+Networking → Network Configuration → Network Interfaces
+
+4. Administración de software
+System → Software Package Updates
+
+5. Gestión de archivos
+Tools → File Manager
+
+
+=============
+Terraform
+=============
+sudo apt update
+(Actualiza la lista de paquetes)
+
+sudo apt install -y gnupg software-properties-common
+(Instala herramientas para claves y repositorios)
+
+wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+(Descarga y guarda la clave GPG de HashiCorp)
+
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+(Agrega el repositorio de HashiCorp)
+
+sudo apt update 
+sudo apt install terraform -y
+(Instala Terraform)
+
+#### GENERAR LLAVE SSH Y TOKEN en Digital Ocean###
+ssh-keygen -t rsa -b 4096
+(Genera una clave SSH segura para copiar en Digital Ocean y obtener la fingerprint)
+
+mkdir terraform-do
+(Crea carpeta)
+
+cd terraform-do
+(Entra a la carpeta)
+
+nano main.tf (Crea archivo de configuración para crear la vm)
+terraform {
+  required_providers {
+    digitalocean = {
+      source  = "digitalocean/digitalocean"
+      version = "~> 2.0"
+    }
+  }
+}
+provider "digitalocean" {
+  token = "TU_TOKEN_DE_DIGITAL_OCEAN_AQUI"
+}
+# Recurso: La Máquina Virtual (Droplet)
+resource "digitalocean_droplet" "OS3vm" {
+  image  = "ubuntu-22-04-x64"
+  name   = "OS3vm"
+  region = "nyc1"
+  size   = "s-1vcpu-1gb"
+    # Aquí va el ID o Fingerprint de la llave SSH que ya subiste a DigitalOcean
+  ssh_keys = ["TU_SSH_KEY_ID_O_FINGERPRINT"]
+}
+# Para ver la IP al finalizar
+output "ip_address" {
+  value = digitalocean_droplet.OS3vm.ipv4_address
+}
+
+
+### Desplegar terraform###
+terraform init
+(Inicializa el proyecto Terraform definido en el main.tf)
+
+terraform plan
+(Muestra los cambios a aplicar)
+
+terraform apply
+(Ejecuta la configuración y crea la vm en DigitalOcean)
+
+
+=================
+ Ansible
+=================
+sudo apt update
+(Actualiza la lista de paquetes)
+
+sudo apt install ansible -y
+(Instala Ansible)
+
+#VM Linux en DigitalOcean#
+sudo adduser ansible (Crea usuario ansible)
+sudo usermod -aG sudo ansible (Agrega ansible al grupo sudo)
+mkdir -p /home/ansible/.ssh (Crea carpeta SSH del usuario)
+cp /root/.ssh/authorized_keys /home/ansible/.ssh/ (Copia claves SSH autorizadas de root a user ansible)
+chown -R ansible:ansible /home/ansible/.ssh (Cambia propietario de la carpeta)
+chmod 700 /home/ansible/.ssh(Da permisos seguros a la carpeta)
+chmod 600 /home/ansible/.ssh/authorized_keys (Da permisos seguros a la clave)
+
+## Verificar la conexion sin contraseña desde Host Kali a Digital ##
+
+#VM de Windows 10#
+Instalar OpenSSH Server
+	Settings → Aplicaciones → Características Opcionales 		Instalar: OpenSSH Server
+
+## Activar PowerShell modo Admin##
+Start-Service sshd (Inicia servicio SSH)
+Set-Service -Name sshd -StartupType Automatic (Configura SSH automático)
+net user ansible 1234 /add (Crea usuario ansible)
+net localgroup Administrators ansible /add (Agrega ansible a administradores)
+
+
+##Apagar los firewall de windows ###
+
+## Verificar conexion de Linux a Windows###
+ssh ansible@IP_WINDOWS
+
+
+#VM de kali Linux. Ansible controller#
+sudo nano /etc/ansible/hosts
+(Edita archivo de inventario de los usuarios creados en ambas vm)
+[linux]
+linux1 ansible_host=IP_LINUX ansible_user=ansible
+
+[win]
+windows1 ansible_host=IP_WINDOWS ansible_user=ansible ansible_password=1234 ansible_connection=ssh ansible_shell_type=powershell ansible_remote_tmp=C:/Windows/Temp
+
+##Probar conexiones con Ping###
+ansible linux -m ping (Prueba conexión a Linux ansible)
+ansible win -m win_ping -k  (Prueba conexión a Windows ansible)
+
+===================
+ Ad-Hoc con Ansible 
+====================
+###Copiar un archivo en Windows usando ansible##
+ansible win -m win_copy -a 'src=C:\Users\ansible\Desktop\Archivo.txt dest=C:\Users\ansible\Documents\Archivo.txt remote_src=true'
+(Copia archivo en Windows con Ansible desde el escritorio a documentos)
+
+sudo visudo (Edita configuración segura de sudo en la vm Linux en Digital Ocean)
+ansible ALL=(ALL) NOPASSWD: ALL (Permite sudo sin contraseña al usuario ansible para hacer el reboot)
+
+ansible linux -m reboot -b
+(Reinicia hosts Linux con privilegios)
+
+####Si hay errores de SSH###
+sudo ip link set dev eth0 mtu 1400
+sudo ip link set dev eth0 mtu 1200
+(Cambia el MTU de la interfaz cuando hay probelmas al conectar por SSH)
+
+
+===========
+Playbooks
+===========
+### Instalar notepad a Windows#
+nano install_notepad.yml (Crea el playbook para Windows)
+- name: Instalar Notepad++ en Windows (Nombra el playbook)
+  hosts: win (Aplica a Windows)
+  Tasks: (Lista de tareas)
+    - name: Instalar Notepad++
+      win_chocolatey:  (Usa Chocolatey en Windows)
+         name: notepadplusplus  (Paquete a instalar)
+        state: present (Instala el programa)
+   
+## Ejecutar el palybook de notepad###    
+ansible-playbook install_notepad.yml
+(Ejecuta playbook en Windows)
+
+
+## Instalar NGINX###
+nano install_nginx.yml(Crea el playbook de NGINX)
+- name: Instalar y configurar NGINX
+  hosts: linux (Aplica a Linux)
+  become: true (Usa privilegios root)
+  Tasks:
+    - name: Actualizar repositorios
+         apt: (Usa módulo apt)
+        update_cache: yes (Actualiza paquetes)
+    - name: Instalar NGINX
+        apt:
+         name: nginx (Paquete nginx)
+        state: present (Instala nginx)
+    - name: Iniciar servicio NGINX
+      service: (Usa módulo service)
+        name: nginx
+        state: started(Inicia servicio)
+        enabled: true (Activa al inicio)
+
+###Ejecutar el playbook de NGINX
+ansible-playbook install_nginx.yml(Ejecuta playbook en Linux)

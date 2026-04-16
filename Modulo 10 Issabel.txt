@@ -1,0 +1,55 @@
+==========================
+Instalacion de Issabel PBX
+==========================
+1. Crear VM en Digital Ocean con base en Rocky Linux 8 
+
+##Instalacion###
+dnf install -y wget firewalld
+
+systemctl start firewalld && systemctl enable firewalld
+firewall-cmd --permanent --add-service=http
+firewall-cmd --permanent --add-service=https
+firewall-cmd --permanent --add-port=5060/udp
+firewall-cmd --permanent --add-port=10000-20000/udp
+firewall-cmd --reload
+
+curl http://repo.issabel.org/issabel5-netinstall.sh | bash   
+(descarga y lanza el asistente de instalación de la PBX)
+
+##Asterisk version 18
+
+###Paquetes adicionales ###
+Todos menos Sangoma Wanpipe drivers
+
+##Poner password para la Database y la PBX
+
+##Seleccionar el puerto SIP 5060##
+chan_sip
+
+==========================
+Interfaz Issabel PBX
+==========================
+1. Creación de la Extensión:
+	Ve a PBX > PBX Configuration > Extensions.
+	Selecciona Generic SIP Device y presiona Submit.
+
+2. Escribir user extension, nombre y secret
+3. Submit
+3. Apply config
+4. Ajuste de Red (NAT):
+	Ve a PBX > PBX Configuration > SIP Settings.	
+	Usa "Auto Configure" para detectar la IP pública.
+	Asegúrate de que NAT esté en Yes.
+	Submit y Apply Config.
+
+==========================
+Zoiper celular
+==========================
+Username ##Extension##@IP_KALI
+Password ##La escrita al crear ext
+
+
+
+
+
+
